@@ -18,7 +18,7 @@
  * - Corsair iCUE H100i / H115i / H150i Elite RGB
  *
  * Technical Description:
- * The device communicates via USB HID. Unlike standard HID devices, it requires
+ * The device communicates via USB HID. Unlike typical HID devices, it requires
  * commands to be sent via Control Transfers (Set Report, Endpoint 0).
  * Status reports are received asynchronously via Input Reports on the Interrupt
  * IN endpoint.
