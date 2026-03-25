@@ -204,16 +204,16 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 
 	ret = hydro_platinum_send_command(priv, feature, command, data, data_len);
 	if (ret < 0) {
-		dev_err_ratelimited(&priv->hdev->dev, "Failed to send command %02x: %d\n",
-				    command, ret);
+		hid_err(priv->hdev, "Failed to send command %02x: %d\n",
+			command, ret);
 		return ret;
 	}
 
 	ret = wait_for_completion_interruptible_timeout(&priv->wait_for_report,
 							msecs_to_jiffies(500));
 	if (ret == 0) {
-		dev_warn_ratelimited(&priv->hdev->dev, "Timeout waiting for response to command %02x\n",
-				     command);
+		hid_warn(priv->hdev, "Timeout waiting for response to command %02x\n",
+			 command);
 		return -ETIMEDOUT;
 	} else if (ret < 0) {
 		return ret;
@@ -232,9 +232,9 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 	 * confuse the device state machine and cause firmware crashes/reboots.
 	 */
 	if (crc8(corsair_crc8_table, priv->rx_buffer + 1, REPORT_LENGTH - 1, 0) != 0) {
-		dev_warn_ratelimited(&priv->hdev->dev,
-				     "CRC check failed for command %02x - possible userspace collision\n",
-				     command);
+		hid_warn(priv->hdev,
+			 "CRC check failed for command %02x - possible userspace collision\n",
+			 command);
 		return -EIO;
 	}
 
@@ -538,12 +538,12 @@ static int hydro_platinum_write(struct device *dev, enum hwmon_sensor_types type
 		ret = hydro_platinum_write_cooling(priv);
 		if (ret) {
 			if (channel == 0)
-				dev_warn_ratelimited(&priv->hdev->dev,
-						     "Failed to set Pump speed: %d\n", ret);
+				hid_warn(priv->hdev,
+					 "Failed to set Pump speed: %d\n", ret);
 			else
-				dev_warn_ratelimited(&priv->hdev->dev,
-						     "Failed to set Fan %d speed: %d\n",
-						     channel, ret);
+				hid_warn(priv->hdev,
+					 "Failed to set Fan %d speed: %d\n",
+					 channel, ret);
 		}
 		break;
 	default:
