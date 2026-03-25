@@ -222,8 +222,8 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 	 * reuse by concurrent userspace tools.
 	 */
 	for (tries = 0; tries < TRANSACTION_RETRIES; tries++) {
-		ret = wait_for_completion_interruptible_timeout(
-			&priv->wait_for_report, msecs_to_jiffies(500));
+		ret = wait_for_completion_interruptible_timeout(&priv->wait_for_report,
+							msecs_to_jiffies(500));
 		if (ret == 0) {
 			hid_warn(priv->hdev,
 				 "Timeout waiting for response to command %02x\n",
