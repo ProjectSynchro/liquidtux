@@ -857,7 +857,19 @@ static struct hid_driver hydro_platinum_driver = {
 #endif
 };
 
-module_hid_driver(hydro_platinum_driver);
+static int __init hydro_platinum_init(void)
+{
+	return hid_register_driver(&hydro_platinum_driver);
+}
+
+static void __exit hydro_platinum_exit(void)
+{
+	hid_unregister_driver(&hydro_platinum_driver);
+}
+
+/* When compiled into the kernel, initialize after the HID bus */
+late_initcall(hydro_platinum_init);
+module_exit(hydro_platinum_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Hwmon driver for Corsair Hydro Platinum / Pro XT / Elite RGB");
