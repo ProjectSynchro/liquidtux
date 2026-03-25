@@ -62,6 +62,7 @@
 #define FEATURE_COOLING_FAN3		0x03	/* Extension: Fan 3 only (Main report is full) */
 #define CMD_GET_STATUS			0xff
 #define CMD_SET_COOLING			0x14
+#define TRANSACTION_RETRIES		3
 
 /* Pump Modes */
 #define PUMP_MODE_QUIET			0x00
@@ -187,8 +188,6 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
  * Sends a command and waits up to 500ms for an Input Report on the Interrupt IN endpoint.
  * This ensures strict command-response ordering to prevent device confusion.
  */
-#define TRANSACTION_RETRIES		3
-
 static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 feature, u8 command,
 				      u8 *data, int data_len)
 {
