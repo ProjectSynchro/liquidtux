@@ -24,8 +24,8 @@
  * IN endpoint.
  *
  * Initialization:
- * The device requires an initialization command (Set Cooling) to begin
- * reporting status and to set the fans/pump to a safe default state.
+ * The device requires an initialization command to begin reporting status
+ * and to set the fans/pump to a safe default state.
  *
  * Copyright 2026 Jack Greiner <jack@emoss.org>
  */
