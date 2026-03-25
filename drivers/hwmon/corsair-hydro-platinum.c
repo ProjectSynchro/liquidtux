@@ -116,7 +116,6 @@ struct hydro_platinum_data {
 	u8 expected_seq;
 
 	unsigned long updated;
-	bool valid;
 	struct dentry *debugfs;
 };
 
@@ -422,8 +421,7 @@ static int hydro_platinum_update(struct hydro_platinum_data *priv)
 	if (ret)
 		return ret;
 
-	if (time_after(jiffies, priv->updated + msecs_to_jiffies(STATUS_VALIDITY)) ||
-	    !priv->valid) {
+	if (time_after(jiffies, priv->updated + msecs_to_jiffies(STATUS_VALIDITY))) {
 		reinit_completion(&priv->wait_for_report);
 
 		ret = hydro_platinum_transaction(priv, FEATURE_COOLING, CMD_GET_STATUS, NULL, 0);
@@ -433,11 +431,9 @@ static int hydro_platinum_update(struct hydro_platinum_data *priv)
 		/* Data is now in priv->rx_buffer (populated by raw_event) */
 
 		/* Firmware Version: res[2] (Major << 4 | Minor), res[3] (Patch) */
-		if (!priv->valid) {
-			priv->fw_version[0] = priv->rx_buffer[2] >> 4;
-			priv->fw_version[1] = priv->rx_buffer[2] & 0x0f;
-			priv->fw_version[2] = priv->rx_buffer[3];
-		}
+		priv->fw_version[0] = priv->rx_buffer[2] >> 4;
+		priv->fw_version[1] = priv->rx_buffer[2] & 0x0f;
+		priv->fw_version[2] = priv->rx_buffer[3];
 
 		/* Temp */
 		priv->liquid_temp = ((int)priv->rx_buffer[8] * 1000) +
@@ -474,7 +470,6 @@ static int hydro_platinum_update(struct hydro_platinum_data *priv)
 		}
 
 		priv->updated = jiffies;
-		priv->valid = true;
 	}
 	ret = 0;
 
@@ -735,6 +730,14 @@ static int hydro_platinum_probe(struct hid_device *hdev, const struct hid_device
 	mutex_init(&priv->lock);
 	spin_lock_init(&priv->rx_lock);
 	init_completion(&priv->wait_for_report);
+
+	/*
+	 * Initialize ->updated to STATUS_VALIDITY in the past, making
+	 * the initial empty data invalid for hydro_platinum_read without
+	 * the need for a special case there.
+	 */
+	priv->updated = jiffies - msecs_to_jiffies(STATUS_VALIDITY);
+
 	hid_set_drvdata(hdev, priv);
 
 	/*
