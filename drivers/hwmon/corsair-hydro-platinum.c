@@ -12,10 +12,10 @@
  * - Fan duty cycle (0-100%)
  *
  * Devices supported:
- * - Corsair Hydro H100i Platinum / SE (Untested)
- * - Corsair Hydro H115i Platinum (Untested)
- * - Corsair Hydro H60i / H100i / H115i / H150i Pro XT (Untested)
- * - Corsair iCUE H100i / H115i / H150i Elite RGB (Tested)
+ * - Corsair Hydro H100i Platinum / SE
+ * - Corsair Hydro H115i Platinum
+ * - Corsair Hydro H60i / H100i / H115i / H150i Pro XT
+ * - Corsair iCUE H100i / H115i / H150i Elite RGB
  *
  * Technical Description:
  * The device communicates via USB HID. Unlike standard HID devices, it requires
