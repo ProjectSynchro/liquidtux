@@ -56,7 +56,7 @@
 /* Constants */
 #define REPORT_LENGTH			64
 #define RESPONSE_LENGTH			64
-#define STATUS_VALIDITY			1000	/* ms */
+#define STATUS_VALIDITY			2000	/* ms; equivalent to two missed updates */
 #define MAX_FAN_COUNT			3
 
 #define CMD_WRITE_PREFIX		0x3f
