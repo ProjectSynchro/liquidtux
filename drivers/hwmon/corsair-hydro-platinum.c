@@ -197,10 +197,13 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
  * Sends a command and waits up to 500ms for an Input Report on the Interrupt IN endpoint.
  * This ensures strict command-response ordering to prevent device confusion.
  */
+#define TRANSACTION_RETRIES		3
+
 static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 feature, u8 command,
 				      u8 *data, int data_len)
 {
 	int ret;
+	int tries;
 
 	reinit_completion(&priv->wait_for_report);
 
@@ -211,29 +214,59 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 		return ret;
 	}
 
-	ret = wait_for_completion_interruptible_timeout(&priv->wait_for_report,
-							msecs_to_jiffies(500));
-	if (ret == 0) {
-		hid_warn(priv->hdev, "Timeout waiting for response to command %02x\n",
-			 command);
-		return -ETIMEDOUT;
-	} else if (ret < 0) {
-		return ret;
-	}
-
 	/*
-	 * CRC Verification: checksumming (Data + CRC) should yield 0 for
-	 * valid packets. Sequence number filtering in raw_event already
-	 * discards responses to other clients, so a CRC failure here
-	 * indicates data corruption rather than a collision.
+	 * Wait for the matching response, retrying if we receive a packet
+	 * that passes raw_event sequence filtering but fails validation
+	 * here (CRC or sequence mismatch). This handles edge cases where
+	 * raw_event filtering alone is insufficient, e.g. sequence number
+	 * reuse by concurrent userspace tools.
 	 */
-	if (crc8(corsair_crc8_table, priv->rx_buffer + 1, REPORT_LENGTH - 1, 0) != 0) {
-		hid_warn(priv->hdev,
-			 "CRC check failed for command %02x\n", command);
-		return -EIO;
+	for (tries = 0; tries < TRANSACTION_RETRIES; tries++) {
+		ret = wait_for_completion_interruptible_timeout(
+			&priv->wait_for_report, msecs_to_jiffies(500));
+		if (ret == 0) {
+			hid_warn(priv->hdev,
+				 "Timeout waiting for response to command %02x\n",
+				 command);
+			return -ETIMEDOUT;
+		} else if (ret < 0) {
+			return ret;
+		}
+
+		/*
+		 * CRC Verification: checksumming (Data + CRC) should yield 0
+		 * for valid packets. Sequence number filtering in raw_event
+		 * already discards most responses to other clients, so a CRC
+		 * failure here indicates data corruption or a rare collision
+		 * from sequence number reuse.
+		 */
+		if (crc8(corsair_crc8_table, priv->rx_buffer + 1,
+			 REPORT_LENGTH - 1, 0) != 0) {
+			hid_dbg(priv->hdev,
+				"CRC check failed for command %02x (attempt %d/%d)\n",
+				command, tries + 1, TRANSACTION_RETRIES);
+			reinit_completion(&priv->wait_for_report);
+			continue;
+		}
+
+		/* Verify the sequence+feature byte matches what we sent */
+		if (priv->rx_buffer[1] != priv->expected_seq) {
+			hid_dbg(priv->hdev,
+				"Sequence mismatch for command %02x: expected %02x, got %02x (attempt %d/%d)\n",
+				command, priv->expected_seq,
+				priv->rx_buffer[1],
+				tries + 1, TRANSACTION_RETRIES);
+			reinit_completion(&priv->wait_for_report);
+			continue;
+		}
+
+		return 0;
 	}
 
-	return 0;
+	hid_warn(priv->hdev,
+		 "Failed to get valid response for command %02x after %d attempts\n",
+		 command, TRANSACTION_RETRIES);
+	return -EIO;
 }
 
 /**
