@@ -418,7 +418,9 @@ static int hydro_platinum_update(struct hydro_platinum_data *priv)
 {
 	int ret;
 
-	mutex_lock(&priv->lock);
+	ret = mutex_lock_interruptible(&priv->lock);
+	if (ret)
+		return ret;
 
 	if (time_after(jiffies, priv->updated + msecs_to_jiffies(STATUS_VALIDITY)) ||
 	    !priv->valid) {
@@ -541,10 +543,12 @@ static int hydro_platinum_write(struct device *dev, enum hwmon_sensor_types type
 				int channel, long val)
 {
 	struct hydro_platinum_data *priv = dev_get_drvdata(dev);
-	int ret = 0;
+	int ret;
 	int i;
 
-	mutex_lock(&priv->lock);
+	ret = mutex_lock_interruptible(&priv->lock);
+	if (ret)
+		return ret;
 
 	switch (type) {
 	case hwmon_pwm:
