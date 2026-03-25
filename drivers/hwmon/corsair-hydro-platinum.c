@@ -192,7 +192,7 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 feature, u8 command,
 				      u8 *data, int data_len)
 {
-	u8 rx_copy[REPORT_LENGTH + 16];
+	u8 rx_copy[REPORT_LENGTH];
 	int ret;
 	int tries;
 
@@ -365,8 +365,8 @@ static int hydro_platinum_raw_event(struct hid_device *hdev, struct hid_report *
 		return 0;
 
 	/* Clamp incoming report payload to rx_buffer size */
-	if (size > REPORT_LENGTH + 16)
-		size = REPORT_LENGTH + 16;
+	if (size > REPORT_LENGTH)
+		size = REPORT_LENGTH;
 
 	/*
 	 * Check if this response matches our expected sequence number.
@@ -686,12 +686,11 @@ static int hydro_platinum_probe(struct hid_device *hdev, const struct hid_device
 		return -ENOMEM;
 
 	priv->hdev = hdev;
-	/* Buffers need to be large enough + safety */
-	priv->tx_buffer = devm_kzalloc(&hdev->dev, REPORT_LENGTH + 16, GFP_KERNEL);
+	priv->tx_buffer = devm_kzalloc(&hdev->dev, REPORT_LENGTH + 1, GFP_KERNEL);
 	if (!priv->tx_buffer)
 		return -ENOMEM;
 
-	priv->rx_buffer = devm_kzalloc(&hdev->dev, REPORT_LENGTH + 16, GFP_KERNEL);
+	priv->rx_buffer = devm_kzalloc(&hdev->dev, REPORT_LENGTH, GFP_KERNEL);
 	if (!priv->rx_buffer)
 		return -ENOMEM;
 
