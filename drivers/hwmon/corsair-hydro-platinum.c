@@ -281,6 +281,17 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 	return -EIO;
 }
 
+/* Initialize the common cooling payload prefix (shared by main and secondary commands) */
+static void hydro_platinum_init_cooling_payload(u8 *data, int size)
+{
+	memset(data, 0, size);
+	data[0] = 0x00;
+	data[1] = 0xff;
+	data[2] = 0x05;
+	memset(data + 3, 0xff, 5);
+	data[OFFSET_PROFILE_LEN] = 7;
+}
+
 /**
  * hydro_platinum_write_cooling - Commit target fan/pump settings to the device.
  * @priv: Driver data.
@@ -294,21 +305,7 @@ static int hydro_platinum_write_cooling(struct hydro_platinum_data *priv)
 	int ret;
 	u8 data[60];
 
-	/*
-	 * Construct the 60-byte payload for the Command 0x14.
-	 * The payload is appended to the 4-byte header in hydro_platinum_send_command.
-	 */
-
-	/*
-	 * Payload Prefix: 00 ff 05 ff ff ff ff ff
-	 */
-	memset(data, 0, sizeof(data));
-	data[0] = 0x00;
-	data[1] = 0xff;
-	data[2] = 0x05;
-	memset(data + 3, 0xff, 5);
-
-	data[OFFSET_PROFILE_LEN] = 7;
+	hydro_platinum_init_cooling_payload(data, sizeof(data));
 
 	/* Pump Mode */
 	data[OFFSET_PUMP_MODE] = priv->target_pump_mode;
@@ -341,22 +338,21 @@ static int hydro_platinum_write_cooling(struct hydro_platinum_data *priv)
 	 * reversing this order may cause the device to stall or return -EPIPE.
 	 */
 
-	/* Fan 3 (Index 2) - Requires Feature Cooling 2 */
+	/*
+	 * Fan 3 (Index 2) - Uses the secondary cooling feature (0x03).
+	 * The secondary payload has the same structure as the main one,
+	 * but only the Fan 1 slot is populated (with Fan 3's settings).
+	 * Fan 2 slot and pump mode must still be present in the payload.
+	 */
 	if (priv->fan_count >= 3) {
 		u8 data2[60];
 
-		memcpy(data2, data, sizeof(data));
+		hydro_platinum_init_cooling_payload(data2, sizeof(data2));
 
-		/* Ensure Pump Mode is set correctly even in secondary command */
+		/* Pump mode must be set in both main and secondary commands */
 		data2[OFFSET_PUMP_MODE] = priv->target_pump_mode;
 
-		/* Reset Fan 1/2 slots */
-		data2[OFFSET_FAN1_MODE] = 0;
-		data2[OFFSET_FAN1_DUTY] = 0;
-		data2[OFFSET_FAN2_MODE] = 0;
-		data2[OFFSET_FAN2_DUTY] = 0;
-
-		/* Fan 3 goes into Fan 1 slot */
+		/* Fan 3 settings go into the Fan 1 slot of the secondary command */
 		data2[OFFSET_FAN1_MODE] = priv->target_fan_mode[2];
 		if (priv->target_fan_mode[2] == FAN_MODE_FIXED_DUTY)
 			data2[OFFSET_FAN1_DUTY] = priv->target_fan_duty[2];
