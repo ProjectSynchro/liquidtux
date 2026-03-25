@@ -724,8 +724,6 @@ static int hydro_platinum_probe(struct hid_device *hdev, const struct hid_device
 	if (ret)
 		hid_warn(hdev, "initialization command failed: %d\n", ret);
 
-	/* Wait for response to init command. hydro_platinum_write_cooling handles the delay. */
-
 	/* Initial update to get firmware version */
 	hid_info(hdev, "Requesting initial status update...\n");
 	ret = hydro_platinum_update(priv);
