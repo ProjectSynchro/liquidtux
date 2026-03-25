@@ -420,33 +420,21 @@ static int hydro_platinum_update(struct hydro_platinum_data *priv)
 				    ((int)priv->rx_buffer[7] * 1000 / 255);
 
 		/*
-		 * Parse Sensor Data:
-		 * - Fan 1 Speed: Offset 14, Duty: Offset 15
-		 * - Fan 2 Speed: Offset 21, Duty: Offset 22
-		 * - Fan 3 Speed: Offset 42, Duty: Offset 43
-		 * - Pump Speed:  Offset 28, Duty: Offset 29
+		 * Parse sensor data. Each channel has duty at the base
+		 * offset and speed as a le16 at base+1.
 		 */
+		static const u8 fan_offsets[] = { 14, 21, 42 };
+		int i;
 
 		/* Pump (Base 28) */
 		priv->pump_speed = get_unaligned_le16(priv->rx_buffer + 28 + 1);
 		priv->pump_duty = priv->rx_buffer[28];
 
-		/* Fan 1 (Base 14) */
-		if (priv->fan_count >= 1) {
-			priv->fan_speeds[0] = get_unaligned_le16(priv->rx_buffer + 14 + 1);
-			priv->fan_duty[0] = priv->rx_buffer[14];
-		}
+		for (i = 0; i < priv->fan_count; i++) {
+			u8 base = fan_offsets[i];
 
-		/* Fan 2 (Base 21) */
-		if (priv->fan_count >= 2) {
-			priv->fan_speeds[1] = get_unaligned_le16(priv->rx_buffer + 21 + 1);
-			priv->fan_duty[1] = priv->rx_buffer[21];
-		}
-
-		/* Fan 3 (Base 42) */
-		if (priv->fan_count >= 3) {
-			priv->fan_speeds[2] = get_unaligned_le16(priv->rx_buffer + 42 + 1);
-			priv->fan_duty[2] = priv->rx_buffer[42];
+			priv->fan_speeds[i] = get_unaligned_le16(priv->rx_buffer + base + 1);
+			priv->fan_duty[i] = priv->rx_buffer[base];
 		}
 
 		priv->updated = jiffies;
