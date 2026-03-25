@@ -76,7 +76,7 @@ $ sudo insmod drivers/hwmon/nzxt-grid3.ko         # NZXT Grid+ V3/Smart Device (
 $ sudo insmod drivers/hwmon/nzxt-kraken2.ko       # NZXT Kraken X42/X52/X62/X72
 $ sudo insmod drivers/hwmon/nzxt-kraken3.ko       # NZXT Kraken X53/X63/X73, Z53/Z63/Z73, Kraken 2023 (standard, Elite)
 $ sudo insmod drivers/hwmon/nzxt-smart2.ko        # NZXT Smart Device V2/RGB & Fan Controller
-$ sudo insmod drivers/hwmon/corsair-hydro-platinum.ko # Corsair Hydro H100i/H115i Platinum/SE, Pro XT, Elite RGB
+$ sudo insmod drivers/hwmon/corsair-hydro-platinum.ko  # Corsair Hydro H100i/H115i Platinum/SE, Pro XT, Elite RGB
 ```
 
 To unload them, use `rmmod` or `modprobe -r`.
