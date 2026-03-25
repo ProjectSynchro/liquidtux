@@ -751,6 +751,7 @@ fail_and_close:
 	hid_hw_close(hdev);
 fail_and_stop:
 	hid_hw_stop(hdev);
+	mutex_destroy(&priv->lock);
 	return ret;
 }
 
@@ -777,6 +778,7 @@ static void hydro_platinum_remove(struct hid_device *hdev)
 	hwmon_device_unregister(priv->hwmon_dev);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
+	mutex_destroy(&priv->lock);
 }
 
 /* Driver Data used for Fan Count */
