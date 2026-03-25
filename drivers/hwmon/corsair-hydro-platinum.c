@@ -364,12 +364,7 @@ static int hydro_platinum_raw_event(struct hid_device *hdev, struct hid_report *
 	if (report->type != HID_INPUT_REPORT)
 		return 0;
 
-	/*
-	 * The driver buffer expects [0]=ReportID, [1]=Prefix.
-	 * We treat the raw data as the payload.
-	 */
-
-	/* Safety check size */
+	/* Clamp incoming report payload to rx_buffer size */
 	if (size > REPORT_LENGTH + 16)
 		size = REPORT_LENGTH + 16;
 
