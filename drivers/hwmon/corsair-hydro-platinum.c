@@ -168,13 +168,8 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 	priv->tx_buffer[REPORT_LENGTH] = crc8(corsair_crc8_table, priv->tx_buffer + 2,
 					      REPORT_LENGTH - 2, 0);
 
-	/* Send Report - 65 bytes */
-
-	/* Use HID_REQ_SET_REPORT (Control Transfer) */
-	ret = hid_hw_raw_request(priv->hdev, 0 /* Report ID */, priv->tx_buffer, REPORT_LENGTH + 1,
+	ret = hid_hw_raw_request(priv->hdev, 0, priv->tx_buffer, REPORT_LENGTH + 1,
 				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
-
-	/* raw_request returns number of bytes written on success */
 	if (ret > 0)
 		ret = 0;
 
