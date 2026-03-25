@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/crc8.h>
 #include <generated/uapi/linux/version.h>
 
@@ -89,6 +90,7 @@ struct hydro_platinum_data {
 	struct hid_device *hdev;
 	struct device *hwmon_dev;
 	struct mutex lock; /* lock for transfer buffer and data access */
+	spinlock_t rx_lock; /* lock for rx_buffer access from raw_event */
 	u8 *tx_buffer;
 	u8 *rx_buffer;
 	u8 sequence;
@@ -202,6 +204,7 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 feature, u8 command,
 				      u8 *data, int data_len)
 {
+	u8 rx_copy[REPORT_LENGTH + 16];
 	int ret;
 	int tries;
 
@@ -234,13 +237,21 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 		}
 
 		/*
+		 * Copy rx_buffer under the spinlock to prevent a late or
+		 * unsolicited raw_event from overwriting it mid-read.
+		 */
+		spin_lock(&priv->rx_lock);
+		memcpy(rx_copy, priv->rx_buffer, sizeof(rx_copy));
+		spin_unlock(&priv->rx_lock);
+
+		/*
 		 * CRC Verification: checksumming (Data + CRC) should yield 0
 		 * for valid packets. Sequence number filtering in raw_event
 		 * already discards most responses to other clients, so a CRC
 		 * failure here indicates data corruption or a rare collision
 		 * from sequence number reuse.
 		 */
-		if (crc8(corsair_crc8_table, priv->rx_buffer + 1,
+		if (crc8(corsair_crc8_table, rx_copy + 1,
 			 REPORT_LENGTH - 1, 0) != 0) {
 			hid_dbg(priv->hdev,
 				"CRC check failed for command %02x (attempt %d/%d)\n",
@@ -250,16 +261,18 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 		}
 
 		/* Verify the sequence+feature byte matches what we sent */
-		if (priv->rx_buffer[1] != priv->expected_seq) {
+		if (rx_copy[1] != priv->expected_seq) {
 			hid_dbg(priv->hdev,
 				"Sequence mismatch for command %02x: expected %02x, got %02x (attempt %d/%d)\n",
 				command, priv->expected_seq,
-				priv->rx_buffer[1],
+				rx_copy[1],
 				tries + 1, TRANSACTION_RETRIES);
 			reinit_completion(&priv->wait_for_report);
 			continue;
 		}
 
+		/* Validated -- copy back for callers to consume */
+		memcpy(priv->rx_buffer, rx_copy, sizeof(rx_copy));
 		return 0;
 	}
 
@@ -386,7 +399,9 @@ static int hydro_platinum_raw_event(struct hid_device *hdev, struct hid_report *
 	if (size >= 2 && data[1] != priv->expected_seq)
 		return 0;
 
+	spin_lock(&priv->rx_lock);
 	memcpy(priv->rx_buffer, data, size);
+	spin_unlock(&priv->rx_lock);
 
 	complete(&priv->wait_for_report);
 	return 0;
@@ -714,6 +729,7 @@ static int hydro_platinum_probe(struct hid_device *hdev, const struct hid_device
 		return -ENOMEM;
 
 	mutex_init(&priv->lock);
+	spin_lock_init(&priv->rx_lock);
 	init_completion(&priv->wait_for_report);
 	hid_set_drvdata(hdev, priv);
 
