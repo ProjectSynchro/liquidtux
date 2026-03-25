@@ -51,12 +51,9 @@
 
 #define DRIVER_NAME		"corsair_hydro_platinum"
 
-/* USB Vendor/Product IDs */
 #define USB_VENDOR_ID_CORSAIR		0x1b1c
 
-/* Constants */
 #define REPORT_LENGTH			64
-#define RESPONSE_LENGTH			64
 #define STATUS_VALIDITY			2000	/* ms; equivalent to two missed updates */
 #define MAX_FAN_COUNT			3
 
