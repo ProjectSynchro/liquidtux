@@ -145,14 +145,8 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 	int ret;
 	int start_at;
 
-	/*
-	 * Construct 65-byte buffer with Report ID 0 padding.
-	 * Some devices/firmware revisions require the alignment of 64-byte payload
-	 * to be offset by the Report ID byte even in Control Transfers.
-	 */
+	/* Byte 0 is the report number. Report data starts at byte 1. */
 	memset(priv->tx_buffer, 0, REPORT_LENGTH + 1);
-
-	priv->tx_buffer[0] = 0x00; /* Report ID Padding */
 	priv->tx_buffer[1] = CMD_WRITE_PREFIX;
 
 	/* Sequence and feature/command logic */
