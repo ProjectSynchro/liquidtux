@@ -735,8 +735,8 @@ static int hydro_platinum_probe(struct hid_device *hdev, const struct hid_device
 		goto fail_and_close;
 	}
 
-	hid_info(hdev, "Firmware version: %d.%d.%d\n",
-		 priv->fw_version[0], priv->fw_version[1], priv->fw_version[2]);
+	hid_dbg(hdev, "Firmware version: %d.%d.%d\n",
+		priv->fw_version[0], priv->fw_version[1], priv->fw_version[2]);
 
 	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, info->hwmon_name,
 							  priv, &hydro_platinum_chip_info,
