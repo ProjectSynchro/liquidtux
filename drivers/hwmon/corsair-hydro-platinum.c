@@ -160,8 +160,11 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 		memcpy(priv->tx_buffer + start_at, data,
 		       min(data_len, REPORT_LENGTH - start_at - 1));
 
-	/* Calculate CRC over buf[2] to buf[REPORT_LENGTH-1+1] */
-	/* Payload is buf[1]..buf[64]. CRC is usually last byte of payload. */
+	/*
+	 * CRC-8 (SMBus polynomial) over buf[2] through buf[REPORT_LENGTH-1].
+	 * The result is placed in buf[REPORT_LENGTH], the last byte of the
+	 * 65-byte report. The device validates this on receipt.
+	 */
 	priv->tx_buffer[REPORT_LENGTH] = crc8(corsair_crc8_table, priv->tx_buffer + 2,
 					      REPORT_LENGTH - 2, 0);
 
