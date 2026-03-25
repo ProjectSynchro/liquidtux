@@ -111,7 +111,6 @@ struct hydro_platinum_data {
 	u8 fw_version[3];
 
 	struct completion wait_for_report;
-	u8 expected_seq;
 
 	unsigned long updated;
 	struct dentry *debugfs;
@@ -153,7 +152,6 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 	/* Sequence and feature/command logic */
 	priv->sequence = (priv->sequence % 31) + 1;
 	priv->tx_buffer[2] = (priv->sequence << 3) | feature;
-	priv->expected_seq = priv->tx_buffer[2];
 	priv->tx_buffer[3] = command;
 	start_at = 4;
 
@@ -205,11 +203,10 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 	}
 
 	/*
-	 * Wait for the matching response, retrying if we receive a packet
-	 * that passes raw_event sequence filtering but fails validation
-	 * here (CRC or sequence mismatch). This handles edge cases where
-	 * raw_event filtering alone is insufficient, e.g. sequence number
-	 * reuse by concurrent userspace tools.
+	 * Wait for a valid response, retrying if the CRC check fails.
+	 * CRC failures can occur when userspace tools (liquidctl, OpenRGB)
+	 * are accessing the device concurrently via HIDRAW, causing us to
+	 * intercept their response packets.
 	 */
 	for (tries = 0; tries < TRANSACTION_RETRIES; tries++) {
 		ret = wait_for_completion_interruptible_timeout(&priv->wait_for_report,
@@ -233,10 +230,9 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 
 		/*
 		 * CRC Verification: checksumming (Data + CRC) should yield 0
-		 * for valid packets. Sequence number filtering in raw_event
-		 * already discards most responses to other clients, so a CRC
-		 * failure here indicates data corruption or a rare collision
-		 * from sequence number reuse.
+		 * for valid packets. The device uses its own sequence counter
+		 * so we cannot match by sequence number. CRC is our only
+		 * validation option.
 		 */
 		if (crc8(corsair_crc8_table, rx_copy + 1,
 			 REPORT_LENGTH - 1, 0) != 0) {
@@ -247,18 +243,7 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 			continue;
 		}
 
-		/* Verify the sequence+feature byte matches what we sent */
-		if (rx_copy[1] != priv->expected_seq) {
-			hid_dbg(priv->hdev,
-				"Sequence mismatch for command %02x: expected %02x, got %02x (attempt %d/%d)\n",
-				command, priv->expected_seq,
-				rx_copy[1],
-				tries + 1, TRANSACTION_RETRIES);
-			reinit_completion(&priv->wait_for_report);
-			continue;
-		}
-
-		/* Validated -- copy back for callers to consume */
+		/* CRC valid -- copy back for callers to consume */
 		memcpy(priv->rx_buffer, rx_copy, sizeof(rx_copy));
 		return 0;
 	}
@@ -368,15 +353,11 @@ static int hydro_platinum_raw_event(struct hid_device *hdev, struct hid_report *
 		size = REPORT_LENGTH;
 
 	/*
-	 * Check if this response matches our expected sequence number.
-	 * The sequence+feature byte is at data[1] in the response.
-	 * If it doesn't match, this is likely a response to a command sent by
-	 * userspace (e.g. liquidctl, OpenRGB) -- silently ignore it and keep
-	 * waiting for our response.
+	 * The device uses its own sequence counter in responses rather than
+	 * echoing ours, so we cannot filter by sequence number here.
+	 * Accept any input report and let the transaction logic (CRC check)
+	 * validate the response.
 	 */
-	if (size >= 2 && data[1] != priv->expected_seq)
-		return 0;
-
 	spin_lock(&priv->rx_lock);
 	memcpy(priv->rx_buffer, data, size);
 	spin_unlock(&priv->rx_lock);
