@@ -111,6 +111,7 @@ struct hydro_platinum_data {
 	u8 fw_version[3];
 
 	struct completion wait_for_report;
+	u8 expected_seq;
 
 	unsigned long updated;
 	bool valid;
@@ -159,6 +160,7 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 	/* Sequence and feature/command logic */
 	priv->sequence = (priv->sequence % 31) + 1;
 	priv->tx_buffer[2] = (priv->sequence << 3) | feature;
+	priv->expected_seq = priv->tx_buffer[2];
 	priv->tx_buffer[3] = command;
 	start_at = 4;
 
@@ -220,21 +222,14 @@ static int hydro_platinum_transaction(struct hydro_platinum_data *priv, u8 featu
 	}
 
 	/*
-	 * CRC Verification
-	 * liquidctl checks CRC over bytes [1..63] (assuming 64 byte report).
-	 * If standard SMBus CRC-8 algorithm is used, checksumming (Data + CRC) should yield 0.
-	 *
-	 * NOTE: When userspace tools (like OpenRGB or liquidctl) are accessing the device
-	 * concurrently, we may intercept their response packets or see collisions.
-	 * In these cases, the CRC check will often fail (or the sequence number might mismatch).
-	 * This is expected behavior in a multi-client scenario and catching it here
-	 * prevents the driver from processing invalid data, which could otherwise
-	 * confuse the device state machine and cause firmware crashes/reboots.
+	 * CRC Verification: checksumming (Data + CRC) should yield 0 for
+	 * valid packets. Sequence number filtering in raw_event already
+	 * discards responses to other clients, so a CRC failure here
+	 * indicates data corruption rather than a collision.
 	 */
 	if (crc8(corsair_crc8_table, priv->rx_buffer + 1, REPORT_LENGTH - 1, 0) != 0) {
 		hid_warn(priv->hdev,
-			 "CRC check failed for command %02x - possible userspace collision\n",
-			 command);
+			 "CRC check failed for command %02x\n", command);
 		return -EIO;
 	}
 
@@ -349,10 +344,15 @@ static int hydro_platinum_raw_event(struct hid_device *hdev, struct hid_report *
 		size = REPORT_LENGTH + 16;
 
 	/*
-	 * Copy to RX buffer.
-	 * We accept any input report here to unblock the waiter, and let the
-	 * transaction logic (CRC check) validate if it's the correct response.
+	 * Check if this response matches our expected sequence number.
+	 * The sequence+feature byte is at data[1] in the response.
+	 * If it doesn't match, this is likely a response to a command sent by
+	 * userspace (e.g. liquidctl, OpenRGB) -- silently ignore it and keep
+	 * waiting for our response.
 	 */
+	if (size >= 2 && data[1] != priv->expected_seq)
+		return 0;
+
 	memcpy(priv->rx_buffer, data, size);
 
 	complete(&priv->wait_for_report);
