@@ -90,7 +90,7 @@ struct hydro_platinum_data {
 	spinlock_t rx_lock; /* lock for rx_buffer access from raw_event */
 	u8 *tx_buffer;
 	u8 *rx_buffer;
-	u8 sequence;
+	u8 sequence; /* protocol sequence number, cycles 1-31 */
 
 	/* Sensor values */
 	u16 fan_speeds[MAX_FAN_COUNT];
