@@ -464,6 +464,9 @@ static int hydro_platinum_read(struct device *dev, enum hwmon_sensor_types type,
 	if (ret < 0)
 		return ret;
 
+	if (time_after(jiffies, priv->updated + msecs_to_jiffies(STATUS_VALIDITY)))
+		return -ENODATA;
+
 	switch (type) {
 	case hwmon_fan:
 		if (channel == 0)
