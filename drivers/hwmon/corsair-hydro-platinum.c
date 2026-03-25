@@ -754,6 +754,21 @@ fail_and_stop:
 	return ret;
 }
 
+static int __maybe_unused hydro_platinum_reset_resume(struct hid_device *hdev)
+{
+	struct hydro_platinum_data *priv = hid_get_drvdata(hdev);
+	int ret;
+
+	mutex_lock(&priv->lock);
+	ret = hydro_platinum_write_cooling(priv);
+	mutex_unlock(&priv->lock);
+
+	if (ret)
+		hid_err(hdev, "re-initialization (reset_resume) failed with %d\n", ret);
+
+	return ret;
+}
+
 static void hydro_platinum_remove(struct hid_device *hdev)
 {
 	struct hydro_platinum_data *priv = hid_get_drvdata(hdev);
@@ -832,6 +847,9 @@ static struct hid_driver hydro_platinum_driver = {
 	.probe = hydro_platinum_probe,
 	.remove = hydro_platinum_remove,
 	.raw_event = hydro_platinum_raw_event,
+#ifdef CONFIG_PM
+	.reset_resume = hydro_platinum_reset_resume,
+#endif
 };
 
 module_hid_driver(hydro_platinum_driver);
