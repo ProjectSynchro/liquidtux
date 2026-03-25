@@ -688,9 +688,6 @@ static int hydro_platinum_probe(struct hid_device *hdev, const struct hid_device
 	const struct hydro_platinum_device_info *info =
 		(const struct hydro_platinum_device_info *)id->driver_data;
 
-	if (!info)
-		return -ENODEV;
-
 	priv->fan_count = info->fan_count;
 	priv->model_name = info->model_name;
 
