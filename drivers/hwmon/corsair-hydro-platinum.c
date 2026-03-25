@@ -158,7 +158,7 @@ static int hydro_platinum_send_command(struct hydro_platinum_data *priv, u8 feat
 
 	if (data && data_len > 0)
 		memcpy(priv->tx_buffer + start_at, data,
-		       min(data_len, REPORT_LENGTH - start_at - 1));
+		       min(data_len, REPORT_LENGTH - start_at));
 
 	/*
 	 * CRC-8 (SMBus polynomial) over buf[2] through buf[REPORT_LENGTH-1].
